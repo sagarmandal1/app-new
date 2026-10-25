@@ -140,26 +140,54 @@ fun LedgerScreen(
                 .padding(paddingValues)
                 .testTag("ledger_screen")
         ) {
-            // Header
-            Row(
+            val totalCustomerDue = remember(customers, sales, duePayments) {
+                customers.sumOf { viewModel.getCustomerLedgerInfo(it.id).balanceDue }
+            }
+            val totalSupplierDue = remember(suppliers, purchases, duePayments) {
+                suppliers.sumOf { viewModel.getSupplierLedgerInfo(it.id).balanceDue }
+            }
+
+            // Summary Card
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
-                Column {
-                    Text(
-                        text = AppStrings.get("ledger_title", lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Track dues, statements, and payment collections",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = AppStrings.get("ledger_title", lang),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (selectedTab == 0) "Total Customers Due" else "Total Suppliers Due",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (selectedTab == 0) AccentAmber.copy(alpha = 0.15f) else AccentRose.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = FormatCurrency(if (selectedTab == 0) totalCustomerDue else totalSupplierDue, curr),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedTab == 0) AccentAmber else AccentRose,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
                 }
             }
 

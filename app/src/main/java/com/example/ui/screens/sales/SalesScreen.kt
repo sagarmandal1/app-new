@@ -97,16 +97,26 @@ fun SalesScreen(
     val curr = settings.currency
 
     var searchQuery by remember { mutableStateOf("") }
+    var statusFilter by remember { mutableStateOf("ALL") } // "ALL", "PAID", "DUE"
     var showCreateSaleDialog by remember { mutableStateOf(showCreateDialogInitially) }
     var selectedSaleForInvoice by remember { mutableStateOf<SaleEntity?>(null) }
     var saleToDelete by remember { mutableStateOf<SaleEntity?>(null) }
 
     val filteredSales = sales.filter { s ->
-        s.customerName.contains(searchQuery, ignoreCase = true) ||
+        val matchesSearch = s.customerName.contains(searchQuery, ignoreCase = true) ||
                 s.serviceName.contains(searchQuery, ignoreCase = true) ||
                 s.invoiceNumber.contains(searchQuery, ignoreCase = true) ||
                 s.paymentMethod.contains(searchQuery, ignoreCase = true)
+        val matchesStatus = when (statusFilter) {
+            "PAID" -> s.dueAmount <= 0.001
+            "DUE" -> s.dueAmount > 0.001
+            else -> true
+        }
+        matchesSearch && matchesStatus
     }
+
+    val totalSalesRevenue = sales.sumOf { it.totalAmount }
+    val totalSalesDue = sales.sumOf { it.dueAmount }
 
     Scaffold(
         floatingActionButton = {
@@ -128,26 +138,64 @@ fun SalesScreen(
                 .padding(paddingValues)
                 .testTag("sales_screen")
         ) {
-            // Header
-            Row(
+            // Header with revenue & due overview
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
-                Column {
-                    Text(
-                        text = AppStrings.get("sales_title", lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Total ${sales.size} sales recorded",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = AppStrings.get("sales_title", lang),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${sales.size} total sales orders",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = PrimaryEmerald.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Rev: ${FormatCurrency(totalSalesRevenue, curr, compact = true)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryEmerald,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (totalSalesDue > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Outstanding Customer Dues: ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = FormatCurrency(totalSalesDue, curr),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AccentRose
+                            )
+                        }
+                    }
                 }
             }
 
@@ -171,13 +219,44 @@ fun SalesScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Status Filter Chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "ALL" to "All (${sales.size})",
+                    "PAID" to "Paid (${sales.count { it.dueAmount <= 0.001 }})",
+                    "DUE" to "Has Due (${sales.count { it.dueAmount > 0.001 }})"
+                ).forEach { (key, label) ->
+                    val isSelected = statusFilter == key
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .clickable { statusFilter = key }
+                            .testTag("sales_filter_${key.lowercase()}")
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (filteredSales.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.ShoppingCart,
-                    title = "No Sales Recorded",
-                    description = "Record your customer orders to track income, auto profit, and dues.",
+                    title = if (statusFilter == "DUE") "No Outstanding Dues" else "No Sales Found",
+                    description = if (statusFilter == "DUE") "All sales in this view are fully paid!" else "Record customer orders to track income, auto profit, and dues.",
                     modifier = Modifier.weight(1f)
                 )
             } else {
