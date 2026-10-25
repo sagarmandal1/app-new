@@ -21,9 +21,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.model.AppStrings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,6 +40,7 @@ fun AddExpenseDialog(
     currency: String,
     lang: String,
     onDismiss: () -> Unit,
+    onQuickAddCategory: ((String) -> Unit)? = null,
     onSaveExpense: (String, String, Double, String, Long, String) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
@@ -44,6 +51,7 @@ fun AddExpenseDialog(
 
     var catExpanded by remember { mutableStateOf(false) }
     var methodExpanded by remember { mutableStateOf(false) }
+    var showQuickAddCat by remember { mutableStateOf(false) }
 
     val amount = amountStr.toDoubleOrNull() ?: 0.0
 
@@ -64,6 +72,27 @@ fun AddExpenseDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Dynamic Expense Category Selector
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = AppStrings.get("category", lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "+ New Category",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { showQuickAddCat = true }
+                            .padding(4.dp)
+                    )
+                }
+
                 ExposedDropdownMenuBox(
                     expanded = catExpanded,
                     onExpandedChange = { catExpanded = !catExpanded },
@@ -73,7 +102,6 @@ fun AddExpenseDialog(
                         value = category,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(AppStrings.get("category", lang)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
@@ -81,6 +109,16 @@ fun AddExpenseDialog(
                         expanded = catExpanded,
                         onDismissRequest = { catExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text("+ Add New Category...", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            },
+                            onClick = {
+                                catExpanded = false
+                                showQuickAddCat = true
+                            }
+                        )
+                        androidx.compose.material3.HorizontalDivider()
                         expenseCategories.forEach { cat ->
                             DropdownMenuItem(
                                 text = { Text(cat) },
@@ -171,4 +209,41 @@ fun AddExpenseDialog(
             }
         }
     )
+
+    if (showQuickAddCat) {
+        var newCatName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showQuickAddCat = false },
+            title = { Text("Add Expense Category") },
+            text = {
+                OutlinedTextField(
+                    value = newCatName,
+                    onValueChange = { newCatName = it },
+                    label = { Text("Category Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = newCatName.trim()
+                        if (trimmed.isNotBlank()) {
+                            onQuickAddCategory?.invoke(trimmed)
+                            category = trimmed
+                            showQuickAddCat = false
+                        }
+                    },
+                    enabled = newCatName.isNotBlank()
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showQuickAddCat = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }

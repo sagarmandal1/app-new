@@ -478,6 +478,78 @@ class BizViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addServiceCategory(newCat: String) {
+        val trimmed = newCat.trim()
+        if (trimmed.isEmpty()) return
+        val current = settings.value
+        if (!current.serviceCategories.contains(trimmed)) {
+            val updated = current.serviceCategories + trimmed
+            updateSettings(current.copy(serviceCategories = updated))
+        }
+    }
+
+    fun editServiceCategory(oldCat: String, newCat: String) {
+        val trimmed = newCat.trim()
+        if (trimmed.isEmpty() || trimmed == oldCat) return
+        val current = settings.value
+        val updatedList = current.serviceCategories.map { if (it == oldCat) trimmed else it }
+        updateSettings(current.copy(serviceCategories = updatedList))
+
+        // Update any existing services that use oldCat
+        viewModelScope.launch {
+            services.value.filter { it.category == oldCat }.forEach { s ->
+                repository.saveService(s.copy(category = trimmed))
+            }
+        }
+    }
+
+    fun removeServiceCategory(cat: String) {
+        val current = settings.value
+        if (current.serviceCategories.size <= 1) return
+        val updated = current.serviceCategories.filter { it != cat }
+        updateSettings(current.copy(serviceCategories = updated))
+    }
+
+    fun addExpenseCategory(newCat: String) {
+        val trimmed = newCat.trim()
+        if (trimmed.isEmpty()) return
+        val current = settings.value
+        if (!current.expenseCategories.contains(trimmed)) {
+            val updated = current.expenseCategories + trimmed
+            updateSettings(current.copy(expenseCategories = updated))
+        }
+    }
+
+    fun editExpenseCategory(oldCat: String, newCat: String) {
+        val trimmed = newCat.trim()
+        if (trimmed.isEmpty() || trimmed == oldCat) return
+        val current = settings.value
+        val updatedList = current.expenseCategories.map { if (it == oldCat) trimmed else it }
+        updateSettings(current.copy(expenseCategories = updatedList))
+
+        // Update any existing expenses that use oldCat
+        viewModelScope.launch {
+            expenses.value.filter { it.category == oldCat }.forEach { e ->
+                repository.recordExpense(
+                    title = e.title,
+                    category = trimmed,
+                    amount = e.amount,
+                    paymentMethod = e.paymentMethod,
+                    date = e.date,
+                    note = e.note
+                )
+                repository.deleteExpense(e)
+            }
+        }
+    }
+
+    fun removeExpenseCategory(cat: String) {
+        val current = settings.value
+        if (current.expenseCategories.size <= 1) return
+        val updated = current.expenseCategories.filter { it != cat }
+        updateSettings(current.copy(expenseCategories = updated))
+    }
+
     fun clearAllData(onDone: () -> Unit = {}) {
         viewModelScope.launch {
             repository.clearAllData()

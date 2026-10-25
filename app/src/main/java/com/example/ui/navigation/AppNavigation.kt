@@ -233,6 +233,7 @@ fun MainAppContainer(
             currency = settings.currency,
             lang = lang,
             onDismiss = { showAddExpenseDialog = false },
+            onQuickAddCategory = { newCat -> viewModel.addExpenseCategory(newCat) },
             onSaveExpense = { title, cat, amt, method, date, note ->
                 viewModel.recordExpense(title, cat, amt, method, date, note) {
                     showAddExpenseDialog = false

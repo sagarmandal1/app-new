@@ -37,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -93,6 +94,7 @@ fun ServicesScreen(
     var serviceToEdit by remember { mutableStateOf<ServiceEntity?>(null) }
     var showAddEditDialog by remember { mutableStateOf(false) }
     var serviceToDelete by remember { mutableStateOf<ServiceEntity?>(null) }
+    var showCategoryManagerDialog by remember { mutableStateOf(false) }
 
     // Filter services
     val filteredServices = services.filter { s ->
@@ -238,6 +240,32 @@ fun ServicesScreen(
                         )
                     }
                 }
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                        modifier = Modifier.clickable { showCategoryManagerDialog = true }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Manage Categories",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Manage",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -284,10 +312,20 @@ fun ServicesScreen(
             serviceCategories = settings.serviceCategories,
             existingSuppliers = suppliers.map { it.name },
             onDismiss = { showAddEditDialog = false },
+            onOpenCategoryManager = { showCategoryManagerDialog = true },
             onSave = { updated ->
                 viewModel.saveService(updated)
                 showAddEditDialog = false
             }
+        )
+    }
+
+    // Category Manager Dialog
+    if (showCategoryManagerDialog) {
+        com.example.ui.components.FullCategoryManagerDialog(
+            viewModel = viewModel,
+            initialTab = 0,
+            onDismiss = { showCategoryManagerDialog = false }
         )
     }
 
@@ -447,6 +485,7 @@ fun AddEditServiceDialog(
     serviceCategories: List<String>,
     existingSuppliers: List<String>,
     onDismiss: () -> Unit,
+    onOpenCategoryManager: () -> Unit,
     onSave: (ServiceEntity) -> Unit
 ) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
@@ -527,7 +566,28 @@ fun AddEditServiceDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Category Dropdown
+                // Category Header & Dropdown
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = AppStrings.get("category", lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "+ Manage Categories",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .clickable { onOpenCategoryManager() }
+                            .padding(4.dp)
+                    )
+                }
+
                 ExposedDropdownMenuBox(
                     expanded = catExpanded,
                     onExpandedChange = { catExpanded = !catExpanded },
@@ -537,7 +597,6 @@ fun AddEditServiceDialog(
                         value = category,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text(AppStrings.get("category", lang)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = catExpanded) },
                         modifier = Modifier
                             .menuAnchor()
@@ -547,6 +606,20 @@ fun AddEditServiceDialog(
                         expanded = catExpanded,
                         onDismissRequest = { catExpanded = false }
                     ) {
+                        DropdownMenuItem(
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("+ Add / Manage Categories", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                            },
+                            onClick = {
+                                catExpanded = false
+                                onOpenCategoryManager()
+                            }
+                        )
+                        HorizontalDivider()
                         serviceCategories.forEach { cat ->
                             DropdownMenuItem(
                                 text = { Text(cat) },

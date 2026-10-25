@@ -398,14 +398,10 @@ fun SettingsScreen(
 
     // Categories Dialog
     if (showCategoryManagerDialog) {
-        ManageCategoriesDialog(
-            currentSettings = settings,
-            lang = lang,
-            onDismiss = { showCategoryManagerDialog = false },
-            onSave = { updated ->
-                viewModel.updateSettings(updated)
-                showCategoryManagerDialog = false
-            }
+        com.example.ui.components.FullCategoryManagerDialog(
+            viewModel = viewModel,
+            initialTab = 0,
+            onDismiss = { showCategoryManagerDialog = false }
         )
     }
 
@@ -546,115 +542,7 @@ fun EditBusinessInfoDialog(
     )
 }
 
-@Composable
-fun ManageCategoriesDialog(
-    currentSettings: BusinessSettings,
-    lang: String,
-    onDismiss: () -> Unit,
-    onSave: (BusinessSettings) -> Unit
-) {
-    var serviceCategories by remember { mutableStateOf(currentSettings.serviceCategories.toMutableList()) }
-    var expenseCategories by remember { mutableStateOf(currentSettings.expenseCategories.toMutableList()) }
-    var newServiceCat by remember { mutableStateOf("") }
-    var newExpenseCat by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(AppStrings.get("manage_categories", lang)) },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text("Service Categories:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newServiceCat,
-                        onValueChange = { newServiceCat = it },
-                        placeholder = { Text("Add service category...") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    IconButton(onClick = {
-                        if (newServiceCat.isNotBlank() && !serviceCategories.contains(newServiceCat.trim())) {
-                            serviceCategories.add(newServiceCat.trim())
-                            newServiceCat = ""
-                        }
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    serviceCategories.take(6).forEach { cat ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(cat, fontSize = 12.sp)
-                            if (serviceCategories.size > 1) {
-                                IconButton(onClick = { serviceCategories.remove(cat) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = AccentRose, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Text("Expense Categories:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newExpenseCat,
-                        onValueChange = { newExpenseCat = it },
-                        placeholder = { Text("Add expense category...") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    IconButton(onClick = {
-                        if (newExpenseCat.isNotBlank() && !expenseCategories.contains(newExpenseCat.trim())) {
-                            expenseCategories.add(newExpenseCat.trim())
-                            newExpenseCat = ""
-                        }
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    expenseCategories.take(6).forEach { cat ->
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text(cat, fontSize = 12.sp)
-                            if (expenseCategories.size > 1) {
-                                IconButton(onClick = { expenseCategories.remove(cat) }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = AccentRose, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                onSave(
-                    currentSettings.copy(
-                        serviceCategories = serviceCategories.toList(),
-                        expenseCategories = expenseCategories.toList()
-                    )
-                )
-            }) {
-                Text(AppStrings.get("save", lang))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(AppStrings.get("cancel", lang))
-            }
-        }
-    )
-}
 
 @Composable
 fun ManagePaymentMethodsDialog(
