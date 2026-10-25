@@ -323,6 +323,14 @@ class BizViewModel(application: Application) : AndroidViewModel(application) {
         return false
     }
 
+    fun unlockWithBiometric(): Boolean {
+        if (settings.value.pinEnabled && settings.value.biometricEnabled) {
+            _isUnlocked.value = true
+            return true
+        }
+        return false
+    }
+
     fun lock() {
         if (settings.value.pinEnabled) {
             _isUnlocked.value = false

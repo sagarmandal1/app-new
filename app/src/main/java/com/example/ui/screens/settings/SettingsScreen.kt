@@ -50,7 +50,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.SettingsBackupRestore
+import com.example.util.BiometricHelper
 import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -384,8 +386,62 @@ fun SettingsScreen(
 
                     if (settings.pinEnabled) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(onClick = { showPinDialog = true }) {
-                            Text("Change PIN Code", fontSize = 12.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showPinDialog = true }) {
+                                Text("Change PIN Code", fontSize = 12.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        val bioStatus = remember(context) { BiometricHelper.canAuthenticateStatus(context) }
+                        val isBioAvailable = remember(context) { BiometricHelper.isBiometricAvailable(context) }
+                        val bioStatusMsg = remember(context) { BiometricHelper.getStatusMessage(bioStatus) }
+
+                        // Biometric Unlock Switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    imageVector = Icons.Default.Fingerprint,
+                                    contentDescription = null,
+                                    tint = if (settings.biometricEnabled && isBioAvailable) PrimaryEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Biometric Unlock (Fingerprint / Face)",
+                                        fontWeight = FontWeight.SemiBold,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = if (isBioAvailable) {
+                                            if (settings.biometricEnabled) "Enabled • Ready for instant access" else "Disabled • PIN required"
+                                        } else {
+                                            bioStatusMsg
+                                        },
+                                        fontSize = 11.sp,
+                                        color = if (isBioAvailable && settings.biometricEnabled) PrimaryEmerald else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Switch(
+                                checked = settings.biometricEnabled && isBioAvailable,
+                                enabled = isBioAvailable,
+                                onCheckedChange = { isEnabled ->
+                                    viewModel.updateSettings(settings.copy(biometricEnabled = isEnabled))
+                                },
+                                modifier = Modifier.testTag("switch_biometric_enabled")
+                            )
                         }
                     }
                 }

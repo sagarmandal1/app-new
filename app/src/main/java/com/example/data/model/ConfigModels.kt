@@ -10,6 +10,7 @@ data class BusinessSettings(
     val language: String = "en", // "en" or "bn"
     val pinEnabled: Boolean = false,
     val pinCode: String = "",
+    val biometricEnabled: Boolean = true,
     val serviceCategories: List<String> = listOf(
         "Software & Tools",
         "Subscription & OTT",

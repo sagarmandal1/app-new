@@ -79,7 +79,9 @@ fun MainAppContainer(
     if (!isUnlocked) {
         PinLockScreen(
             businessName = if (settings.businessName.isNotBlank()) settings.businessName else "BizLedger",
-            onUnlock = { pin -> viewModel.unlockWithPin(pin) }
+            biometricEnabled = settings.biometricEnabled,
+            onUnlock = { pin -> viewModel.unlockWithPin(pin) },
+            onUnlockBiometric = { viewModel.unlockWithBiometric() }
         )
         return
     }

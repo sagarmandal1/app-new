@@ -1,11 +1,12 @@
 package com.example.ui.screens.security
 
+import android.widget.Toast
+import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Shield
@@ -30,12 +32,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,6 +58,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AccentRose
 import com.example.ui.theme.PrimaryEmerald
 import com.example.ui.theme.PrimaryEmeraldDark
+import com.example.util.BiometricHelper
+import com.example.util.findFragmentActivity
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -64,13 +68,20 @@ data class KeypadKey(val digit: String, val letters: String)
 @Composable
 fun PinLockScreen(
     businessName: String,
+    biometricEnabled: Boolean = true,
     onUnlock: (String) -> Boolean,
+    onUnlockBiometric: () -> Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findFragmentActivity() }
+    val isBiometricReady = remember(context) { BiometricHelper.isBiometricAvailable(context) }
+
     var enteredPin by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
     var errorAttempts by remember { mutableIntStateOf(0) }
     var showForgotPinDialog by remember { mutableStateOf(false) }
+    var biometricFeedback by remember { mutableStateOf<String?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val shakeOffset = remember { Animatable(0f) }
@@ -95,11 +106,47 @@ fun PinLockScreen(
         }
     }
 
+    val launchBiometric = {
+        if (activity != null && isBiometricReady && biometricEnabled) {
+            BiometricHelper.showBiometricPrompt(
+                activity = activity,
+                title = "BizLedger Vault",
+                subtitle = "Confirm fingerprint or face to access $businessName",
+                negativeButtonText = "Use PIN",
+                onSuccess = {
+                    biometricFeedback = null
+                    onUnlockBiometric()
+                },
+                onError = { errorCode, errString ->
+                    if (errorCode != BiometricPrompt.ERROR_USER_CANCELED &&
+                        errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON
+                    ) {
+                        biometricFeedback = errString.toString()
+                    }
+                },
+                onFailed = {
+                    biometricFeedback = "Biometric not recognized. Try again or enter PIN."
+                }
+            )
+        } else if (activity != null) {
+            val status = BiometricHelper.canAuthenticateStatus(context)
+            val msg = BiometricHelper.getStatusMessage(status)
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Auto-prompt biometric dialog on first load if enabled & available
+    LaunchedEffect(Unit) {
+        if (biometricEnabled && isBiometricReady && activity != null) {
+            launchBiometric()
+        }
+    }
+
     val keys = listOf(
         listOf(KeypadKey("1", ""), KeypadKey("2", "ABC"), KeypadKey("3", "DEF")),
         listOf(KeypadKey("4", "GHI"), KeypadKey("5", "JKL"), KeypadKey("6", "MNO")),
         listOf(KeypadKey("7", "PQRS"), KeypadKey("8", "TUV"), KeypadKey("9", "WXYZ")),
-        listOf(KeypadKey("FORGOT", ""), KeypadKey("0", "+"), KeypadKey("DEL", ""))
+        listOf(KeypadKey("BIOMETRIC", ""), KeypadKey("0", "+"), KeypadKey("DEL", ""))
     )
 
     Surface(
@@ -111,11 +158,11 @@ fun PinLockScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 28.dp, vertical = 24.dp),
+                .padding(horizontal = 28.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Header: Enterprise Security Brand & Avatar
             Column(
@@ -146,7 +193,7 @@ fun PinLockScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = businessName,
@@ -156,7 +203,7 @@ fun PinLockScreen(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -170,14 +217,14 @@ fun PinLockScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "BizLedger Vault • Authorized Access",
+                        text = if (biometricEnabled && isBiometricReady) "BizLedger Vault • PIN & Biometrics" else "BizLedger Vault • Authorized Access",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // 4 PIN Dots Indicator with animated shake on error
                 Row(
@@ -221,22 +268,27 @@ fun PinLockScreen(
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.SemiBold
                     )
+                } else if (biometricFeedback != null) {
+                    Text(
+                        text = biometricFeedback!!,
+                        color = AccentRose,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium
+                    )
                 } else {
                     Text(
-                        text = "Enter your 4-digit security PIN",
+                        text = if (biometricEnabled && isBiometricReady) "Enter PIN or tap fingerprint to unlock" else "Enter your 4-digit security PIN",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // Keypad
+            // Keypad & Recovery Area
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 keys.forEach { rowKeys ->
                     Row(
@@ -246,28 +298,38 @@ fun PinLockScreen(
                     ) {
                         rowKeys.forEach { keyItem ->
                             when (keyItem.digit) {
-                                "FORGOT" -> {
-                                    Box(
+                                "BIOMETRIC" -> {
+                                    Surface(
                                         modifier = Modifier
                                             .size(72.dp)
                                             .clip(CircleShape)
                                             .clickable {
-                                                showForgotPinDialog = true
-                                            },
-                                        contentAlignment = Alignment.Center
+                                                launchBiometric()
+                                            }
+                                            .testTag("btn_biometric_unlock"),
+                                        shape = CircleShape,
+                                        color = if (biometricEnabled && isBiometricReady) {
+                                            PrimaryEmerald.copy(alpha = 0.15f)
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                        }
                                     ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Column(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
                                             Icon(
-                                                imageVector = Icons.Default.Info,
-                                                contentDescription = "Forgot PIN",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                                modifier = Modifier.size(20.dp)
+                                                imageVector = Icons.Default.Fingerprint,
+                                                contentDescription = "Biometric Unlock",
+                                                tint = if (biometricEnabled && isBiometricReady) PrimaryEmerald else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                modifier = Modifier.size(28.dp)
                                             )
                                             Text(
-                                                text = "Help",
-                                                fontSize = 10.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                fontWeight = FontWeight.Medium
+                                                text = "Bio",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (biometricEnabled && isBiometricReady) PrimaryEmerald else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                             )
                                         }
                                     }
@@ -281,6 +343,7 @@ fun PinLockScreen(
                                                 if (enteredPin.isNotEmpty()) {
                                                     enteredPin = enteredPin.dropLast(1)
                                                     isError = false
+                                                    biometricFeedback = null
                                                 }
                                             }
                                             .testTag("pin_key_backspace"),
@@ -304,6 +367,7 @@ fun PinLockScreen(
                                                     val newPin = enteredPin + keyItem.digit
                                                     enteredPin = newPin
                                                     isError = false
+                                                    biometricFeedback = null
                                                     if (newPin.length == 4) {
                                                         val success = onUnlock(newPin)
                                                         if (!success) {
@@ -347,6 +411,25 @@ fun PinLockScreen(
                         }
                     }
                 }
+
+                // Help / Forgot PIN Button
+                TextButton(
+                    onClick = { showForgotPinDialog = true },
+                    modifier = Modifier.testTag("btn_forgot_pin")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Forgot PIN? Tap for recovery help",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -364,7 +447,7 @@ fun PinLockScreen(
             text = {
                 Column {
                     Text(
-                        text = "For security, your accounts and transactions are encrypted with this PIN on this device.",
+                        text = "For security, your accounts and transactions are protected by this PIN on this device.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -376,14 +459,18 @@ fun PinLockScreen(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "PIN Recovery Note:",
+                                text = "Biometric & Recovery Note:",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "If you have a previously saved BizLedger JSON backup file, you can restore your business data and reset your PIN, or check your recorded credentials with the business owner ($businessName).",
+                                text = if (biometricEnabled && isBiometricReady) {
+                                    "You can unlock immediately using your device's registered Fingerprint or Face recognition by tapping the biometric icon on the dialpad."
+                                } else {
+                                    "If you have a previously saved BizLedger JSON backup file, you can restore your business data and reset your PIN, or check credentials with the business owner ($businessName)."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
