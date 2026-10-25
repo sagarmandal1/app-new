@@ -21,6 +21,9 @@ interface ServiceDao {
     @Query("SELECT * FROM services ORDER BY createdAt DESC")
     fun getAllServices(): Flow<List<ServiceEntity>>
 
+    @Query("SELECT * FROM services ORDER BY id ASC")
+    suspend fun getAllServicesList(): List<ServiceEntity>
+
     @Query("SELECT * FROM services WHERE status = 'ACTIVE' ORDER BY name ASC")
     fun getActiveServices(): Flow<List<ServiceEntity>>
 
@@ -48,6 +51,9 @@ interface CustomerDao {
     @Query("SELECT * FROM customers ORDER BY name ASC")
     fun getAllCustomers(): Flow<List<CustomerEntity>>
 
+    @Query("SELECT * FROM customers ORDER BY id ASC")
+    suspend fun getAllCustomersList(): List<CustomerEntity>
+
     @Query("SELECT * FROM customers WHERE id = :id LIMIT 1")
     suspend fun getCustomerById(id: Long): CustomerEntity?
 
@@ -72,6 +78,9 @@ interface SupplierDao {
     @Query("SELECT * FROM suppliers ORDER BY name ASC")
     fun getAllSuppliers(): Flow<List<SupplierEntity>>
 
+    @Query("SELECT * FROM suppliers ORDER BY id ASC")
+    suspend fun getAllSuppliersList(): List<SupplierEntity>
+
     @Query("SELECT * FROM suppliers WHERE id = :id LIMIT 1")
     suspend fun getSupplierById(id: Long): SupplierEntity?
 
@@ -95,6 +104,9 @@ interface SupplierDao {
 interface SaleDao {
     @Query("SELECT * FROM sales ORDER BY date DESC")
     fun getAllSales(): Flow<List<SaleEntity>>
+
+    @Query("SELECT * FROM sales ORDER BY id ASC")
+    suspend fun getAllSalesList(): List<SaleEntity>
 
     @Query("SELECT * FROM sales WHERE customerId = :customerId ORDER BY date DESC")
     fun getSalesByCustomer(customerId: Long): Flow<List<SaleEntity>>
@@ -123,6 +135,9 @@ interface PurchaseDao {
     @Query("SELECT * FROM purchases ORDER BY date DESC")
     fun getAllPurchases(): Flow<List<PurchaseEntity>>
 
+    @Query("SELECT * FROM purchases ORDER BY id ASC")
+    suspend fun getAllPurchasesList(): List<PurchaseEntity>
+
     @Query("SELECT * FROM purchases WHERE supplierId = :supplierId ORDER BY date DESC")
     fun getPurchasesBySupplier(supplierId: Long): Flow<List<PurchaseEntity>>
 
@@ -147,6 +162,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY date DESC")
     fun getAllExpenses(): Flow<List<ExpenseEntity>>
 
+    @Query("SELECT * FROM expenses ORDER BY id ASC")
+    suspend fun getAllExpensesList(): List<ExpenseEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: ExpenseEntity): Long
 
@@ -168,6 +186,9 @@ interface DuePaymentDao {
     @Query("SELECT * FROM due_payments ORDER BY date DESC")
     fun getAllDuePayments(): Flow<List<DuePaymentEntity>>
 
+    @Query("SELECT * FROM due_payments ORDER BY id ASC")
+    suspend fun getAllDuePaymentsList(): List<DuePaymentEntity>
+
     @Query("SELECT * FROM due_payments WHERE partyType = :partyType AND partyId = :partyId ORDER BY date DESC")
     fun getDuePaymentsForParty(partyType: String, partyId: Long): Flow<List<DuePaymentEntity>>
 
@@ -188,6 +209,9 @@ interface DuePaymentDao {
 interface ConfigDao {
     @Query("SELECT * FROM app_config")
     fun getAllConfigs(): Flow<List<AppConfigEntity>>
+
+    @Query("SELECT * FROM app_config")
+    suspend fun getAllConfigsList(): List<AppConfigEntity>
 
     @Query("SELECT value FROM app_config WHERE `key` = :key LIMIT 1")
     suspend fun getConfig(key: String): String?

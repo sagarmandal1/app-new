@@ -11,6 +11,7 @@ import com.example.data.local.entity.PurchaseEntity
 import com.example.data.local.entity.SaleEntity
 import com.example.data.local.entity.ServiceEntity
 import com.example.data.local.entity.SupplierEntity
+import com.example.data.model.BackupRestoreSummary
 import com.example.data.model.BusinessSettings
 import com.example.data.repository.BizRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -548,6 +549,25 @@ class BizViewModel(application: Application) : AndroidViewModel(application) {
         if (current.expenseCategories.size <= 1) return
         val updated = current.expenseCategories.filter { it != cat }
         updateSettings(current.copy(expenseCategories = updated))
+    }
+
+    suspend fun exportBackupJson(): String {
+        return repository.exportBackupJson()
+    }
+
+    fun importBackupJson(
+        jsonString: String,
+        clearExisting: Boolean = false,
+        onResult: (Result<BackupRestoreSummary>) -> Unit
+    ) {
+        viewModelScope.launch {
+            try {
+                val summary = repository.importBackupJson(jsonString, clearExisting)
+                onResult(Result.success(summary))
+            } catch (e: Exception) {
+                onResult(Result.failure(e))
+            }
+        }
     }
 
     fun clearAllData(onDone: () -> Unit = {}) {

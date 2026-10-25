@@ -41,6 +41,19 @@ data class BusinessSettings(
     val isDarkMode: Boolean = false
 )
 
+data class BackupRestoreSummary(
+    val servicesCount: Int = 0,
+    val customersCount: Int = 0,
+    val suppliersCount: Int = 0,
+    val salesCount: Int = 0,
+    val purchasesCount: Int = 0,
+    val expensesCount: Int = 0,
+    val duePaymentsCount: Int = 0
+) {
+    val totalRecords: Int
+        get() = servicesCount + customersCount + suppliersCount + salesCount + purchasesCount + expensesCount + duePaymentsCount
+}
+
 object AppStrings {
     fun get(key: String, lang: String): String {
         val isBn = lang == "bn"
@@ -149,9 +162,13 @@ object AppStrings {
             "manage_categories" -> if (isBn) "ক্যাটাগরি ব্যবস্থাপনা" else "Manage Categories"
             "manage_payment_methods" -> if (isBn) "পেমেন্ট মাধ্যম ব্যবস্থাপনা" else "Payment Methods"
             "backup_restore" -> if (isBn) "ডাটা ব্যাকআপ ও রিস্টোর" else "Backup & Restore"
-            "export_backup" -> if (isBn) "ব্যাকআপ ফাইল তৈরি (JSON)" else "Export Backup (JSON)"
-            "import_backup" -> if (isBn) "ব্যাকআপ থেকে রিস্টোর" else "Import Backup"
+            "export_backup" -> if (isBn) "সম্পূর্ণ ব্যাকআপ তৈরি (JSON)" else "Export Full Backup (JSON)"
+            "import_backup" -> if (isBn) "ব্যাকআপ থেকে রিস্টোর" else "Import / Restore Backup"
             "clear_data" -> if (isBn) "সব ডাটা মুছুন" else "Reset / Clear Data"
+            "export_success" -> if (isBn) "ব্যাকআপ ফাইল সফলভাবে তৈরি হয়েছে!" else "Backup exported successfully!"
+            "restore_success" -> if (isBn) "ডাটা সফলভাবে রিস্টোর হয়েছে!" else "Data restored successfully!"
+            "restore_error" -> if (isBn) "রিস্টোর ব্যর্থ হয়েছে! সঠিক JSON দিন।" else "Restore failed! Please provide valid JSON."
+            "paste_backup_json" -> if (isBn) "ব্যাকআপ JSON কোড পেস্ট করুন" else "Paste Backup JSON"
 
             // Common
             "save" -> if (isBn) "সংরক্ষণ করুন" else "Save"

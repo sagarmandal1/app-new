@@ -42,6 +42,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.SettingsBackupRestore
+import androidx.compose.material3.Checkbox
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.example.data.model.BackupRestoreSummary
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -74,6 +87,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val settings by viewModel.settings.collectAsState()
     val lang = settings.language
 
@@ -82,6 +96,29 @@ fun SettingsScreen(
     var showPaymentMethodsDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var showClearDataConfirm by remember { mutableStateOf(false) }
+
+    var lastExportedJson by remember { mutableStateOf("") }
+    var showExportSuccessDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
+    var restoreSummary by remember { mutableStateOf<BackupRestoreSummary?>(null) }
+    var restoreErrorMessage by remember { mutableStateOf<String?>(null) }
+    var importJsonText by remember { mutableStateOf("") }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            try {
+                val content = context.contentResolver.openInputStream(it)?.bufferedReader()?.use { r -> r.readText() }
+                if (!content.isNullOrBlank()) {
+                    importJsonText = content
+                    Toast.makeText(context, "Backup file loaded", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                restoreErrorMessage = "Failed to read file: ${e.message}"
+            }
+        }
+    }
 
     LazyColumn(
         modifier = modifier
@@ -342,40 +379,98 @@ fun SettingsScreen(
         // Data Backup & Reset Card
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("backup_restore_card"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(AppStrings.get("backup_restore", lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Export your accounting data for secure local or cloud storage.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.SettingsBackupRestore,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                AppStrings.get("backup_restore", lang),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "Full JSON database backup & restore (all 8 tables)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Button(
                             onClick = {
-                                exportBackup(context, settings)
+                                coroutineScope.launch {
+                                    try {
+                                        val fullJson = viewModel.exportBackupJson()
+                                        lastExportedJson = fullJson
+                                        exportBackupFile(context, fullJson, settings.businessName)
+                                        showExportSuccessDialog = true
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Export error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("export_backup_button"),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Backup JSON", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(AppStrings.get("export_backup", lang), fontSize = 11.sp, maxLines = 1)
                         }
 
                         OutlinedButton(
-                            onClick = { showClearDataConfirm = true },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRose)
+                            onClick = { showImportDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("import_backup_button"),
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Reset Data", fontSize = 12.sp)
+                            Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(AppStrings.get("import_backup", lang), fontSize = 11.sp, maxLines = 1)
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { showClearDataConfirm = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("reset_data_button"),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRose)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(AppStrings.get("clear_data", lang), fontSize = 11.sp)
                     }
                 }
             }
@@ -451,6 +546,59 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showClearDataConfirm = false }) {
                     Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Export Success Dialog
+    if (showExportSuccessDialog) {
+        BackupExportSuccessDialog(
+            jsonString = lastExportedJson,
+            onDismiss = { showExportSuccessDialog = false },
+            onShareAgain = {
+                exportBackupFile(context, lastExportedJson, settings.businessName)
+            }
+        )
+    }
+
+    // Import Backup Dialog
+    if (showImportDialog) {
+        ImportBackupDialog(
+            initialText = importJsonText,
+            onDismiss = { showImportDialog = false },
+            onPickFile = { filePickerLauncher.launch("*/*") },
+            onRestore = { json, clearExisting ->
+                showImportDialog = false
+                viewModel.importBackupJson(json, clearExisting) { result ->
+                    result.onSuccess { summary ->
+                        restoreSummary = summary
+                        importJsonText = ""
+                    }.onFailure { err ->
+                        restoreErrorMessage = err.message ?: "Invalid JSON or database error"
+                    }
+                }
+            }
+        )
+    }
+
+    // Restore Success Summary Dialog
+    restoreSummary?.let { summary ->
+        RestoreSummaryDialog(
+            summary = summary,
+            onDismiss = { restoreSummary = null }
+        )
+    }
+
+    // Restore Error Dialog
+    restoreErrorMessage?.let { err ->
+        AlertDialog(
+            onDismissRequest = { restoreErrorMessage = null },
+            title = { Text("Restore Failed", fontWeight = FontWeight.Bold) },
+            text = { Text("Failed to restore data from backup.\n\nError: $err\n\nPlease ensure you provide a valid BizLedger JSON backup.") },
+            confirmButton = {
+                Button(onClick = { restoreErrorMessage = null }) {
+                    Text("OK")
                 }
             }
         )
@@ -656,22 +804,217 @@ fun ChangePinDialog(
     )
 }
 
-private fun exportBackup(context: Context, settings: BusinessSettings) {
-    val backupJson = """
-    {
-      "app": "BizLedger",
-      "businessName": "${settings.businessName}",
-      "ownerName": "${settings.ownerName}",
-      "phone": "${settings.phone}",
-      "currency": "${settings.currency}",
-      "timestamp": ${System.currentTimeMillis()}
-    }
-    """.trimIndent()
+private fun exportBackupFile(context: Context, jsonString: String, businessName: String) {
+    try {
+        val fileName = "bizledger_backup_${System.currentTimeMillis()}.json"
+        val file = java.io.File(context.cacheDir, fileName)
+        file.writeText(jsonString)
 
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "application/json"
-        putExtra(Intent.EXTRA_SUBJECT, "BizLedger Backup - ${settings.businessName}")
-        putExtra(Intent.EXTRA_TEXT, backupJson)
-    }
-    context.startActivity(Intent.createChooser(intent, "Save or Export BizLedger Backup"))
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_SUBJECT, "BizLedger Complete Backup - $businessName")
+            putExtra(Intent.EXTRA_TEXT, jsonString)
+        }
+        val chooser = Intent.createChooser(intent, "Save or Export BizLedger Full Backup")
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    } catch (_: Exception) {}
+}
+
+@Composable
+fun BackupExportSuccessDialog(
+    jsonString: String,
+    onDismiss: () -> Unit,
+    onShareAgain: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = PrimaryEmerald,
+                modifier = Modifier.size(36.dp)
+            )
+        },
+        title = {
+            Text("Full Backup Ready!", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column {
+                Text(
+                    "All 8 tables (Services, Customers, Suppliers, Sales, Purchases, Expenses, Due Ledger, and Settings) have been successfully compiled into real JSON format.",
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                ) {
+                    Box(modifier = Modifier.padding(8.dp)) {
+                        Text(
+                            text = jsonString.take(350) + if (jsonString.length > 350) "\n... [Full JSON ${jsonString.length} chars]" else "",
+                            fontSize = 11.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("BizLedger Backup", jsonString)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "Backup JSON copied to clipboard!", Toast.LENGTH_SHORT).show()
+                onDismiss()
+            }) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Copy JSON")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onShareAgain) {
+                Text("Share File")
+            }
+        }
+    )
+}
+
+@Composable
+fun ImportBackupDialog(
+    initialText: String,
+    onDismiss: () -> Unit,
+    onPickFile: () -> Unit,
+    onRestore: (json: String, clearExisting: Boolean) -> Unit
+) {
+    var jsonText by remember { mutableStateOf(initialText) }
+    var clearExisting by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Restore Backup (JSON)", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Paste your BizLedger JSON backup or select a .json backup file from device storage:",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onPickFile,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Select .json File from Storage", fontSize = 12.sp)
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = jsonText,
+                    onValueChange = { jsonText = it },
+                    label = { Text("Backup JSON Content") },
+                    placeholder = { Text("{\"app\": \"BizLedger\", \"services\": [...], ...}") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    ),
+                    maxLines = 10
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { clearExisting = !clearExisting }
+                ) {
+                    Checkbox(checked = clearExisting, onCheckedChange = { clearExisting = it })
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Wipe existing data before restore", fontSize = 12.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (jsonText.isNotBlank()) {
+                        onRestore(jsonText.trim(), clearExisting)
+                    }
+                },
+                enabled = jsonText.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryEmerald)
+            ) {
+                Text("Restore Database")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun RestoreSummaryDialog(
+    summary: BackupRestoreSummary,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = PrimaryEmerald,
+                modifier = Modifier.size(40.dp)
+            )
+        },
+        title = {
+            Text("Data Restored Successfully!", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "All records have been restored into the local BizLedger database:",
+                    fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text("• Services: ${summary.servicesCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Customers: ${summary.customersCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Suppliers: ${summary.suppliersCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Sales: ${summary.salesCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Purchases: ${summary.purchasesCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Expenses: ${summary.expensesCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Due Payments: ${summary.duePaymentsCount}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("• Business Settings & Preferences: Updated", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }

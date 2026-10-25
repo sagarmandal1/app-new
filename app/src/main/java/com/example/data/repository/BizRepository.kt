@@ -9,6 +9,7 @@ import com.example.data.local.entity.PurchaseEntity
 import com.example.data.local.entity.SaleEntity
 import com.example.data.local.entity.ServiceEntity
 import com.example.data.local.entity.SupplierEntity
+import com.example.data.model.BackupRestoreSummary
 import com.example.data.model.BusinessSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -273,22 +274,347 @@ class BizRepository(private val db: AppDatabase) {
     // Backup & Restore
     suspend fun exportBackupJson(): String {
         val root = JSONObject()
-        val sList = JSONArray()
-        val cList = JSONArray()
-        val supList = JSONArray()
-        val slList = JSONArray()
-        val pList = JSONArray()
-        val eList = JSONArray()
-
+        root.put("app", "BizLedger")
         root.put("version", 1)
         root.put("exportedAt", System.currentTimeMillis())
-        root.put("services", sList)
-        root.put("customers", cList)
-        root.put("suppliers", supList)
-        root.put("sales", slList)
-        root.put("purchases", pList)
-        root.put("expenses", eList)
+
+        // 1. Services
+        val servicesList = db.serviceDao().getAllServicesList()
+        val sArr = JSONArray()
+        servicesList.forEach { s ->
+            val obj = JSONObject()
+            obj.put("id", s.id)
+            obj.put("name", s.name)
+            obj.put("type", s.type)
+            obj.put("category", s.category)
+            obj.put("costPrice", s.costPrice)
+            obj.put("sellPrice", s.sellPrice)
+            obj.put("supplierName", s.supplierName)
+            obj.put("status", s.status)
+            obj.put("description", s.description)
+            obj.put("createdAt", s.createdAt)
+            sArr.put(obj)
+        }
+        root.put("services", sArr)
+
+        // 2. Customers
+        val customersList = db.customerDao().getAllCustomersList()
+        val cArr = JSONArray()
+        customersList.forEach { c ->
+            val obj = JSONObject()
+            obj.put("id", c.id)
+            obj.put("name", c.name)
+            obj.put("phone", c.phone)
+            obj.put("email", c.email)
+            obj.put("address", c.address)
+            obj.put("notes", c.notes)
+            obj.put("createdAt", c.createdAt)
+            cArr.put(obj)
+        }
+        root.put("customers", cArr)
+
+        // 3. Suppliers
+        val suppliersList = db.supplierDao().getAllSuppliersList()
+        val supArr = JSONArray()
+        suppliersList.forEach { sup ->
+            val obj = JSONObject()
+            obj.put("id", sup.id)
+            obj.put("name", sup.name)
+            obj.put("phone", sup.phone)
+            obj.put("email", sup.email)
+            obj.put("company", sup.company)
+            obj.put("address", sup.address)
+            obj.put("notes", sup.notes)
+            obj.put("createdAt", sup.createdAt)
+            supArr.put(obj)
+        }
+        root.put("suppliers", supArr)
+
+        // 4. Sales
+        val salesList = db.saleDao().getAllSalesList()
+        val slArr = JSONArray()
+        salesList.forEach { sl ->
+            val obj = JSONObject()
+            obj.put("id", sl.id)
+            obj.put("invoiceNumber", sl.invoiceNumber)
+            obj.put("customerId", sl.customerId)
+            obj.put("customerName", sl.customerName)
+            obj.put("serviceId", sl.serviceId)
+            obj.put("serviceName", sl.serviceName)
+            obj.put("serviceType", sl.serviceType)
+            obj.put("quantity", sl.quantity)
+            obj.put("unitCostPrice", sl.unitCostPrice)
+            obj.put("unitSellPrice", sl.unitSellPrice)
+            obj.put("discount", sl.discount)
+            obj.put("subtotal", sl.subtotal)
+            obj.put("totalAmount", sl.totalAmount)
+            obj.put("paidAmount", sl.paidAmount)
+            obj.put("dueAmount", sl.dueAmount)
+            obj.put("totalCost", sl.totalCost)
+            obj.put("profit", sl.profit)
+            obj.put("paymentMethod", sl.paymentMethod)
+            obj.put("date", sl.date)
+            obj.put("note", sl.note)
+            slArr.put(obj)
+        }
+        root.put("sales", slArr)
+
+        // 5. Purchases
+        val purchasesList = db.purchaseDao().getAllPurchasesList()
+        val pArr = JSONArray()
+        purchasesList.forEach { p ->
+            val obj = JSONObject()
+            obj.put("id", p.id)
+            obj.put("purchaseNumber", p.purchaseNumber)
+            obj.put("supplierId", p.supplierId)
+            obj.put("supplierName", p.supplierName)
+            obj.put("serviceId", p.serviceId)
+            obj.put("serviceName", p.serviceName)
+            obj.put("quantity", p.quantity)
+            obj.put("unitBuyPrice", p.unitBuyPrice)
+            obj.put("totalAmount", p.totalAmount)
+            obj.put("paidAmount", p.paidAmount)
+            obj.put("dueAmount", p.dueAmount)
+            obj.put("paymentMethod", p.paymentMethod)
+            obj.put("date", p.date)
+            obj.put("note", p.note)
+            pArr.put(obj)
+        }
+        root.put("purchases", pArr)
+
+        // 6. Expenses
+        val expensesList = db.expenseDao().getAllExpensesList()
+        val eArr = JSONArray()
+        expensesList.forEach { e ->
+            val obj = JSONObject()
+            obj.put("id", e.id)
+            obj.put("title", e.title)
+            obj.put("category", e.category)
+            obj.put("amount", e.amount)
+            obj.put("paymentMethod", e.paymentMethod)
+            obj.put("date", e.date)
+            obj.put("note", e.note)
+            eArr.put(obj)
+        }
+        root.put("expenses", eArr)
+
+        // 7. Due Payments
+        val duePaymentsList = db.duePaymentDao().getAllDuePaymentsList()
+        val dpArr = JSONArray()
+        duePaymentsList.forEach { dp ->
+            val obj = JSONObject()
+            obj.put("id", dp.id)
+            obj.put("partyType", dp.partyType)
+            obj.put("partyId", dp.partyId)
+            obj.put("partyName", dp.partyName)
+            obj.put("amount", dp.amount)
+            obj.put("paymentMethod", dp.paymentMethod)
+            obj.put("date", dp.date)
+            obj.put("note", dp.note)
+            dpArr.put(obj)
+        }
+        root.put("due_payments", dpArr)
+
+        // 8. Settings / App Config
+        val configsList = db.configDao().getAllConfigsList()
+        val cfgObj = JSONObject()
+        configsList.forEach { cfg ->
+            cfgObj.put(cfg.key, cfg.value)
+        }
+        root.put("app_config", cfgObj)
+
         return root.toString(2)
+    }
+
+    suspend fun importBackupJson(jsonString: String, clearExisting: Boolean = false): BackupRestoreSummary {
+        val root = JSONObject(jsonString)
+        if (clearExisting) {
+            clearAllData()
+        }
+
+        // Parse services
+        val sArr = root.optJSONArray("services") ?: JSONArray()
+        val services = mutableListOf<ServiceEntity>()
+        for (i in 0 until sArr.length()) {
+            val obj = sArr.getJSONObject(i)
+            services.add(
+                ServiceEntity(
+                    id = obj.optLong("id", 0L),
+                    name = obj.getString("name"),
+                    type = obj.optString("type", "RESELL"),
+                    category = obj.optString("category", "General"),
+                    costPrice = obj.optDouble("costPrice", 0.0),
+                    sellPrice = obj.optDouble("sellPrice", 0.0),
+                    supplierName = obj.optString("supplierName", ""),
+                    status = obj.optString("status", "ACTIVE"),
+                    description = obj.optString("description", ""),
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                )
+            )
+        }
+
+        // Parse customers
+        val cArr = root.optJSONArray("customers") ?: JSONArray()
+        val customers = mutableListOf<CustomerEntity>()
+        for (i in 0 until cArr.length()) {
+            val obj = cArr.getJSONObject(i)
+            customers.add(
+                CustomerEntity(
+                    id = obj.optLong("id", 0L),
+                    name = obj.getString("name"),
+                    phone = obj.optString("phone", ""),
+                    email = obj.optString("email", ""),
+                    address = obj.optString("address", ""),
+                    notes = obj.optString("notes", ""),
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                )
+            )
+        }
+
+        // Parse suppliers
+        val supArr = root.optJSONArray("suppliers") ?: JSONArray()
+        val suppliers = mutableListOf<SupplierEntity>()
+        for (i in 0 until supArr.length()) {
+            val obj = supArr.getJSONObject(i)
+            suppliers.add(
+                SupplierEntity(
+                    id = obj.optLong("id", 0L),
+                    name = obj.getString("name"),
+                    phone = obj.optString("phone", ""),
+                    email = obj.optString("email", ""),
+                    company = obj.optString("company", ""),
+                    address = obj.optString("address", ""),
+                    notes = obj.optString("notes", ""),
+                    createdAt = obj.optLong("createdAt", System.currentTimeMillis())
+                )
+            )
+        }
+
+        // Parse sales
+        val slArr = root.optJSONArray("sales") ?: JSONArray()
+        val sales = mutableListOf<SaleEntity>()
+        for (i in 0 until slArr.length()) {
+            val obj = slArr.getJSONObject(i)
+            sales.add(
+                SaleEntity(
+                    id = obj.optLong("id", 0L),
+                    invoiceNumber = obj.getString("invoiceNumber"),
+                    customerId = obj.optLong("customerId", 0L),
+                    customerName = obj.optString("customerName", "Customer"),
+                    serviceId = obj.optLong("serviceId", 0L),
+                    serviceName = obj.optString("serviceName", "Service"),
+                    serviceType = obj.optString("serviceType", "RESELL"),
+                    quantity = obj.optInt("quantity", 1),
+                    unitCostPrice = obj.optDouble("unitCostPrice", 0.0),
+                    unitSellPrice = obj.optDouble("unitSellPrice", 0.0),
+                    discount = obj.optDouble("discount", 0.0),
+                    subtotal = obj.optDouble("subtotal", 0.0),
+                    totalAmount = obj.optDouble("totalAmount", 0.0),
+                    paidAmount = obj.optDouble("paidAmount", 0.0),
+                    dueAmount = obj.optDouble("dueAmount", 0.0),
+                    totalCost = obj.optDouble("totalCost", 0.0),
+                    profit = obj.optDouble("profit", 0.0),
+                    paymentMethod = obj.optString("paymentMethod", "Cash"),
+                    date = obj.optLong("date", System.currentTimeMillis()),
+                    note = obj.optString("note", "")
+                )
+            )
+        }
+
+        // Parse purchases
+        val pArr = root.optJSONArray("purchases") ?: JSONArray()
+        val purchases = mutableListOf<PurchaseEntity>()
+        for (i in 0 until pArr.length()) {
+            val obj = pArr.getJSONObject(i)
+            purchases.add(
+                PurchaseEntity(
+                    id = obj.optLong("id", 0L),
+                    purchaseNumber = obj.getString("purchaseNumber"),
+                    supplierId = obj.optLong("supplierId", 0L),
+                    supplierName = obj.optString("supplierName", "Supplier"),
+                    serviceId = obj.optLong("serviceId", 0L),
+                    serviceName = obj.optString("serviceName", "Service"),
+                    quantity = obj.optInt("quantity", 1),
+                    unitBuyPrice = obj.optDouble("unitBuyPrice", 0.0),
+                    totalAmount = obj.optDouble("totalAmount", 0.0),
+                    paidAmount = obj.optDouble("paidAmount", 0.0),
+                    dueAmount = obj.optDouble("dueAmount", 0.0),
+                    paymentMethod = obj.optString("paymentMethod", "Cash"),
+                    date = obj.optLong("date", System.currentTimeMillis()),
+                    note = obj.optString("note", "")
+                )
+            )
+        }
+
+        // Parse expenses
+        val eArr = root.optJSONArray("expenses") ?: JSONArray()
+        val expenses = mutableListOf<ExpenseEntity>()
+        for (i in 0 until eArr.length()) {
+            val obj = eArr.getJSONObject(i)
+            expenses.add(
+                ExpenseEntity(
+                    id = obj.optLong("id", 0L),
+                    title = obj.getString("title"),
+                    category = obj.optString("category", "General"),
+                    amount = obj.optDouble("amount", 0.0),
+                    paymentMethod = obj.optString("paymentMethod", "Cash"),
+                    date = obj.optLong("date", System.currentTimeMillis()),
+                    note = obj.optString("note", "")
+                )
+            )
+        }
+
+        // Parse due payments
+        val dpArr = root.optJSONArray("due_payments") ?: JSONArray()
+        val duePayments = mutableListOf<DuePaymentEntity>()
+        for (i in 0 until dpArr.length()) {
+            val obj = dpArr.getJSONObject(i)
+            duePayments.add(
+                DuePaymentEntity(
+                    id = obj.optLong("id", 0L),
+                    partyType = obj.getString("partyType"),
+                    partyId = obj.optLong("partyId", 0L),
+                    partyName = obj.optString("partyName", ""),
+                    amount = obj.optDouble("amount", 0.0),
+                    paymentMethod = obj.optString("paymentMethod", "Cash"),
+                    date = obj.optLong("date", System.currentTimeMillis()),
+                    note = obj.optString("note", "")
+                )
+            )
+        }
+
+        // Parse app_config
+        val cfgObj = root.optJSONObject("app_config")
+        if (cfgObj != null) {
+            val configs = mutableListOf<AppConfigEntity>()
+            val keys = cfgObj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                configs.add(AppConfigEntity(k, cfgObj.getString(k)))
+            }
+            if (configs.isNotEmpty()) {
+                db.configDao().insertConfigs(configs)
+            }
+        }
+
+        // Restore tables with REPLACE conflict strategy
+        if (services.isNotEmpty()) db.serviceDao().insertAll(services)
+        if (customers.isNotEmpty()) db.customerDao().insertAll(customers)
+        if (suppliers.isNotEmpty()) db.supplierDao().insertAll(suppliers)
+        if (sales.isNotEmpty()) db.saleDao().insertAll(sales)
+        if (purchases.isNotEmpty()) db.purchaseDao().insertAll(purchases)
+        if (expenses.isNotEmpty()) db.expenseDao().insertAll(expenses)
+        if (duePayments.isNotEmpty()) db.duePaymentDao().insertAll(duePayments)
+
+        return BackupRestoreSummary(
+            servicesCount = services.size,
+            customersCount = customers.size,
+            suppliersCount = suppliers.size,
+            salesCount = sales.size,
+            purchasesCount = purchases.size,
+            expensesCount = expenses.size,
+            duePaymentsCount = duePayments.size
+        )
     }
 
     suspend fun clearAllData() {
