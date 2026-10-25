@@ -844,28 +844,42 @@ fun InvoiceDialog(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Actions
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Close")
-                    }
-
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = {
-                            shareInvoiceText(context, sale, settings)
+                            com.example.util.FileExportHelper.shareInvoicePdf(context, sale, settings)
                         },
-                        modifier = Modifier.weight(1.3f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("share_pdf_invoice_button"),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Share Invoice")
+                        Text("Share PDF Invoice", fontWeight = FontWeight.Bold)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Close")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                shareInvoiceText(context, sale, settings)
+                            },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Share Text", fontSize = 12.sp)
+                        }
                     }
                 }
             }

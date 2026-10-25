@@ -1,15 +1,15 @@
 package com.example.data.model
 
 data class BusinessSettings(
-    val businessName: String = "BizLedger Services",
-    val ownerName: String = "Sagar Mandal",
-    val phone: String = "+880 1712 345678",
-    val email: String = "biz@ledger.com",
-    val address: String = "Dhaka, Bangladesh",
+    val businessName: String = "",
+    val ownerName: String = "",
+    val phone: String = "",
+    val email: String = "",
+    val address: String = "",
     val currency: String = "৳",
     val language: String = "en", // "en" or "bn"
     val pinEnabled: Boolean = false,
-    val pinCode: String = "1234",
+    val pinCode: String = "",
     val serviceCategories: List<String> = listOf(
         "Software & Tools",
         "Subscription & OTT",

@@ -78,8 +78,18 @@ fun MainAppContainer(
 
     if (!isUnlocked) {
         PinLockScreen(
-            businessName = settings.businessName,
+            businessName = if (settings.businessName.isNotBlank()) settings.businessName else "BizLedger",
             onUnlock = { pin -> viewModel.unlockWithPin(pin) }
+        )
+        return
+    }
+
+    if (settings.businessName.isBlank() || settings.phone.isBlank()) {
+        com.example.ui.screens.settings.FirstSetupScreen(
+            currentSettings = settings,
+            onSave = { updated ->
+                viewModel.updateSettings(updated)
+            }
         )
         return
     }

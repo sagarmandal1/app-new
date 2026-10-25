@@ -631,11 +631,18 @@ class BizRepository(private val db: AppDatabase) {
         val existing = db.configDao().getConfig("is_seeded")
         if (existing == "true") return
 
-        // Seed default config
+        // Seed default config only (categories & payment methods, blank business info)
         updateSettings(BusinessSettings())
         db.configDao().setConfig(AppConfigEntity("is_seeded", "true"))
+    }
 
-        // Seed starter services (Resell & Own)
+    /**
+     * Optional demo data loader triggered only from Settings for testing/evaluation.
+     */
+    suspend fun loadDemoData(): Int {
+        var count = 0
+
+        // Starter services (Resell & Own)
         val starterServices = listOf(
             ServiceEntity(
                 name = "Canva Pro Annual License",
@@ -651,7 +658,7 @@ class BizRepository(private val db: AppDatabase) {
                 name = "Custom Landing Page Design",
                 type = "OWN",
                 category = "Web & App Development",
-                costPrice = 1200.0, // Domain/Hosting/Design asset cost
+                costPrice = 1200.0,
                 sellPrice = 5500.0,
                 supplierName = "",
                 status = "ACTIVE",
@@ -671,7 +678,7 @@ class BizRepository(private val db: AppDatabase) {
                 name = "Social Media Brand Identity Kit",
                 type = "OWN",
                 category = "Graphic & UI Design",
-                costPrice = 600.0, // Fonts and stock graphic resources
+                costPrice = 600.0,
                 sellPrice = 3500.0,
                 supplierName = "",
                 status = "ACTIVE",
@@ -679,8 +686,9 @@ class BizRepository(private val db: AppDatabase) {
             )
         )
         db.serviceDao().insertAll(starterServices)
+        count += starterServices.size
 
-        // Seed initial customers
+        // Starter customers
         val starterCustomers = listOf(
             CustomerEntity(
                 name = "Tanvir Ahmed",
@@ -698,8 +706,9 @@ class BizRepository(private val db: AppDatabase) {
             )
         )
         db.customerDao().insertAll(starterCustomers)
+        count += starterCustomers.size
 
-        // Seed initial suppliers
+        // Starter suppliers
         val starterSuppliers = listOf(
             SupplierEntity(
                 name = "Global Digital Tech",
@@ -719,8 +728,9 @@ class BizRepository(private val db: AppDatabase) {
             )
         )
         db.supplierDao().insertAll(starterSuppliers)
+        count += starterSuppliers.size
 
-        // Seed sample sale
+        // Sample sale
         val initialSale = SaleEntity(
             invoiceNumber = "INV-10024",
             customerId = 1,
@@ -737,14 +747,15 @@ class BizRepository(private val db: AppDatabase) {
             paidAmount = 1200.0,
             dueAmount = 400.0,
             totalCost = 900.0,
-            profit = 700.0, // 1600 - 900
+            profit = 700.0,
             paymentMethod = "bKash",
             date = System.currentTimeMillis() - 86400000L,
             note = "Client paid partial via bKash, 400 BDT due next week"
         )
         db.saleDao().insertSale(initialSale)
+        count += 1
 
-        // Seed sample expense
+        // Sample expense
         val initialExpense = ExpenseEntity(
             title = "Office High-Speed Optical Fiber Internet",
             category = "Internet & Utilities",
@@ -754,6 +765,9 @@ class BizRepository(private val db: AppDatabase) {
             note = "Monthly broadband bill"
         )
         db.expenseDao().insertExpense(initialExpense)
+        count += 1
+
+        return count
     }
 
     private fun serializeStringList(list: List<String>): String {

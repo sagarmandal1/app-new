@@ -459,28 +459,11 @@ private fun exportCsvReport(
     settings: com.example.data.model.BusinessSettings,
     filterName: String
 ) {
-    val csv = buildString {
-        appendLine("Business Name,${settings.businessName}")
-        appendLine("Report Filter,$filterName")
-        appendLine("Currency,${settings.currency}")
-        appendLine()
-        appendLine("--- SALES & REVENUE ---")
-        appendLine("Invoice,Date,Customer,Service,Type,Qty,Sell Price,Subtotal,Discount,Net Total,Paid,Due,Profit")
-        sales.forEach { s ->
-            appendLine("${s.invoiceNumber},${s.date},\"${s.customerName}\",\"${s.serviceName}\",${s.serviceType},${s.quantity},${s.unitSellPrice},${s.subtotal},${s.discount},${s.totalAmount},${s.paidAmount},${s.dueAmount},${s.profit}")
-        }
-        appendLine()
-        appendLine("--- EXPENSES ---")
-        appendLine("Title,Category,Amount,Payment Method,Date,Note")
-        expenses.forEach { e ->
-            appendLine("\"${e.title}\",\"${e.category}\",${e.amount},${e.paymentMethod},${e.date},\"${e.note}\"")
-        }
-    }
-
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/csv"
-        putExtra(Intent.EXTRA_SUBJECT, "${settings.businessName} - Financial Report ($filterName)")
-        putExtra(Intent.EXTRA_TEXT, csv)
-    }
-    context.startActivity(Intent.createChooser(intent, "Export Financial Report CSV"))
+    com.example.util.FileExportHelper.generateAndShareReportsCsv(
+        context = context,
+        sales = sales,
+        expenses = expenses,
+        settings = settings,
+        filterName = filterName
+    )
 }

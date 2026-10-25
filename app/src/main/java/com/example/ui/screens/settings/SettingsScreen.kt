@@ -96,6 +96,7 @@ fun SettingsScreen(
     var showPaymentMethodsDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var showClearDataConfirm by remember { mutableStateOf(false) }
+    var showLoadDemoDataConfirm by remember { mutableStateOf(false) }
 
     var lastExportedJson by remember { mutableStateOf("") }
     var showExportSuccessDialog by remember { mutableStateOf(false) }
@@ -169,8 +170,20 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text(settings.businessName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                            Text("Owner: ${settings.ownerName} • ${settings.phone}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                if (settings.businessName.isNotBlank()) settings.businessName else "Set Business Name",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            val details = listOfNotNull(
+                                settings.ownerName.takeIf { it.isNotBlank() }?.let { "Owner: $it" },
+                                settings.phone.takeIf { it.isNotBlank() }
+                            ).joinToString(" • ")
+                            Text(
+                                if (details.isNotBlank()) details else "Tap to configure business & contact details",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                     Text(AppStrings.get("edit", lang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -356,10 +369,14 @@ fun SettingsScreen(
                         Switch(
                             checked = settings.pinEnabled,
                             onCheckedChange = { enabled ->
-                                if (enabled && settings.pinCode.isBlank()) {
-                                    showPinDialog = true
+                                if (enabled) {
+                                    if (settings.pinCode.isBlank()) {
+                                        showPinDialog = true
+                                    } else {
+                                        viewModel.updateSettings(settings.copy(pinEnabled = true))
+                                    }
                                 } else {
-                                    viewModel.updateSettings(settings.copy(pinEnabled = enabled))
+                                    viewModel.updateSettings(settings.copy(pinEnabled = false))
                                 }
                             }
                         )
@@ -368,8 +385,73 @@ fun SettingsScreen(
                     if (settings.pinEnabled) {
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(onClick = { showPinDialog = true }) {
-                            Text("Change PIN Code (Current: ${settings.pinCode})", fontSize = 12.sp)
+                            Text("Change PIN Code", fontSize = 12.sp)
                         }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // Local On-Device Storage Transparency Notice
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("local_storage_notice_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(PrimaryEmerald.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = PrimaryEmerald,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                "Local On-Device Database",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                "100% Offline, Private & Confidential",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "BizLedger operates completely offline using on-device SQLite storage. None of your business finances, customers, sales, or margins are ever uploaded to cloud servers.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = AccentRose.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "⚠️ Warning: Clearing app data or uninstalling the app permanently deletes your local database. Export regular JSON backups to Google Drive or external storage to prevent data loss.",
+                            color = AccentRose,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(10.dp)
+                        )
                     }
                 }
             }
@@ -458,7 +540,22 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Optional Demo Data Loader Button
+                    OutlinedButton(
+                        onClick = { showLoadDemoDataConfirm = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("load_demo_data_button"),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Load Demo Data (Testing)", fontSize = 11.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     OutlinedButton(
                         onClick = { showClearDataConfirm = true },
@@ -530,21 +627,58 @@ fun SettingsScreen(
     if (showClearDataConfirm) {
         AlertDialog(
             onDismissRequest = { showClearDataConfirm = false },
-            title = { Text("Reset Business Data?") },
-            text = { Text("This will delete all sales, purchases, expenses, and ledger history. Service catalog and settings will be preserved.") },
+            title = { Text("Reset Business Data?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "⚠️ PERMANENT LOCAL DATA LOSS WARNING:\n\nBizLedger stores all transactions and party ledgers 100% locally on this device. Resetting will permanently erase all sales, purchases, expenses, and due balances from your phone.\n\nThis data cannot be recovered unless you have previously exported a JSON backup file.\n\nAre you sure you want to proceed?"
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.clearAllData()
+                        viewModel.clearAllData {
+                            Toast.makeText(context, "Business data reset successfully", Toast.LENGTH_SHORT).show()
+                        }
                         showClearDataConfirm = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentRose)
                 ) {
-                    Text("Confirm Reset")
+                    Text("Confirm Permanent Reset")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDataConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Load Demo Data Confirmation Dialog
+    if (showLoadDemoDataConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLoadDemoDataConfirm = false },
+            title = { Text("Load Demo Data (Testing)?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "This will populate starter services (Canva Pro, Landing Page, Google Workspace), sample customers, suppliers, a sample sale, and a sample expense for demonstration and testing.\n\nExisting records will not be deleted."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.loadDemoData { count ->
+                            Toast.makeText(context, "Loaded $count demo records", Toast.LENGTH_SHORT).show()
+                            showLoadDemoDataConfirm = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryEmerald)
+                ) {
+                    Text("Load Demo Records")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLoadDemoDataConfirm = false }) {
                     Text("Cancel")
                 }
             }
@@ -768,30 +902,69 @@ fun ChangePinDialog(
     onDismiss: () -> Unit,
     onSave: (String) -> Unit
 ) {
-    var pin by remember { mutableStateOf(currentPin) }
+    var pin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set 4-Digit Owner PIN") },
+        title = { Text("Set 4-Digit Security PIN", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text("Enter a 4-digit numeric PIN to secure your business ledger upon launch.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    "Enter a new 4-digit numeric PIN to secure your business ledger upon launch.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = pin,
-                    onValueChange = { if (it.length <= 6) pin = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("PIN Code") },
+                    onValueChange = {
+                        if (it.length <= 4) {
+                            pin = it.filter { ch -> ch.isDigit() }
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("New 4-Digit PIN") },
+                    placeholder = { Text("e.g. 5821") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = confirmPin,
+                    onValueChange = {
+                        if (it.length <= 4) {
+                            confirmPin = it.filter { ch -> ch.isDigit() }
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("Confirm 4-Digit PIN") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorMessage != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(errorMessage!!, color = AccentRose, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         },
         confirmButton = {
             Button(
-                onClick = { if (pin.length >= 4) onSave(pin) },
-                enabled = pin.length >= 4
+                onClick = {
+                    if (pin.length != 4) {
+                        errorMessage = "PIN must be exactly 4 digits"
+                    } else if (pin != confirmPin) {
+                        errorMessage = "PIN codes do not match"
+                    } else {
+                        onSave(pin)
+                    }
+                },
+                enabled = pin.length == 4 && confirmPin.length == 4
             ) {
                 Text(AppStrings.get("save", lang))
             }
@@ -805,20 +978,7 @@ fun ChangePinDialog(
 }
 
 private fun exportBackupFile(context: Context, jsonString: String, businessName: String) {
-    try {
-        val fileName = "bizledger_backup_${System.currentTimeMillis()}.json"
-        val file = java.io.File(context.cacheDir, fileName)
-        file.writeText(jsonString)
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/json"
-            putExtra(Intent.EXTRA_SUBJECT, "BizLedger Complete Backup - $businessName")
-            putExtra(Intent.EXTRA_TEXT, jsonString)
-        }
-        val chooser = Intent.createChooser(intent, "Save or Export BizLedger Full Backup")
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(chooser)
-    } catch (_: Exception) {}
+    com.example.util.FileExportHelper.shareBackupJsonFile(context, jsonString, businessName)
 }
 
 @Composable

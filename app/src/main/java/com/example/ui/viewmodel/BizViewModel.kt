@@ -576,4 +576,11 @@ class BizViewModel(application: Application) : AndroidViewModel(application) {
             onDone()
         }
     }
+
+    fun loadDemoData(onDone: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            val count = repository.loadDemoData()
+            onDone(count)
+        }
+    }
 }
